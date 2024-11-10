@@ -1,14 +1,18 @@
 package com.proyecto.turisteando.controllers;
 
-import com.proyecto.turisteando.dtos.IDto;
 import com.proyecto.turisteando.dtos.requestDto.TouristPlanRequestDto;
+import com.proyecto.turisteando.dtos.responseDto.TouristPlanResponseDto;
 import com.proyecto.turisteando.services.ITouristPlanService;
 import com.proyecto.turisteando.utils.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("api/tourist-plans")
@@ -17,10 +21,15 @@ public class TouristPlanController {
     @Autowired
     private ITouristPlanService touristPlanService;
 
-    @PostMapping("/create")
-    public ResponseEntity<Response> createTouristPlan(@Validated @RequestBody TouristPlanRequestDto touristPlan) {
-        IDto newTouristPlan = touristPlanService.create(touristPlan);
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Response> createTouristPlan(
+            @Validated @RequestPart("touristPlan") TouristPlanRequestDto touristPlan,
+            @RequestPart("images") List<MultipartFile> images) {
+
+        touristPlan.setMultipartImages(images); // Añadir las imágenes al DTO manualmente
+        TouristPlanResponseDto newTouristPlan = touristPlanService.create(touristPlan);
         Response response = new Response(true, HttpStatus.CREATED, newTouristPlan);
+
         return ResponseEntity.ok(response);
     }
 
@@ -32,7 +41,7 @@ public class TouristPlanController {
 
     @GetMapping("/all")
     public ResponseEntity<Response> getAllTouristPlans() {
-        Iterable<IDto> allTouristPlans = touristPlanService.getAll();
+        Iterable<TouristPlanResponseDto> allTouristPlans = touristPlanService.getAll();
 
         if (!allTouristPlans.iterator().hasNext()) {
             Response response = new Response(false, HttpStatus.NO_CONTENT, "No se encontraron planes turísticos");
@@ -44,7 +53,7 @@ public class TouristPlanController {
 
     @GetMapping("/search")
     public ResponseEntity<Response> searchTouristPlans(@ModelAttribute TouristPlanRequestDto iDto) {
-        Iterable<IDto> touristPlans = touristPlanService.getAllByFilters(iDto);
+        Iterable<TouristPlanResponseDto> touristPlans = touristPlanService.getAllByFilters(iDto);
 
         if (!touristPlans.iterator().hasNext()) {
             Response response = new Response(false, HttpStatus.NO_CONTENT, "No se encontraron planes turísticos");
@@ -56,21 +65,21 @@ public class TouristPlanController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Response> updateTouristPlan(@RequestBody TouristPlanRequestDto touristPlan, @PathVariable Long id) {
-        IDto updatedTouristPlan = touristPlanService.update(touristPlan, id);
+        TouristPlanResponseDto updatedTouristPlan = touristPlanService.update(touristPlan, id);
         Response response = new Response(true, HttpStatus.OK, updatedTouristPlan);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<Response> deleteTouristPlan(@PathVariable Long id) {
-        IDto deletedTouristPlan = touristPlanService.delete(id);
+        TouristPlanResponseDto deletedTouristPlan = touristPlanService.delete(id);
         Response response = new Response(true, HttpStatus.OK, deletedTouristPlan);
         return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/toggle-status/{id}")
     public ResponseEntity<Response> toggleTouristPlanStatus(@PathVariable Long id) {
-        IDto toggledTouristPlan = touristPlanService.toggleStatus(id);
+        TouristPlanResponseDto toggledTouristPlan = touristPlanService.toggleStatus(id);
         Response response = new Response(true, HttpStatus.OK, toggledTouristPlan);
         return ResponseEntity.ok(response);
     }

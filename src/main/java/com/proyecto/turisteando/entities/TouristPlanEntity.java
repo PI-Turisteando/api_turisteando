@@ -2,6 +2,7 @@ package com.proyecto.turisteando.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,24 +26,30 @@ public class TouristPlanEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 100, unique = true, nullable = false)
+    @Size(min = 3, max = 100, message = "El título debe tener entre 3 y 100 caracteres")
     private String title;
 
-    @Column(length = 500)
+    @Column(length = 500, nullable = false)
     private String description;
 
     private Double price;
 
     // Campos  para el plan turístico con relaciones de entidades pendientes
     private String seller;
-    private String city;
+
+    @ManyToOne()
+    @JoinColumn(name = "city_id", nullable = false)
+    private CityEntity city;
 
     @ManyToOne()
     @JoinColumn(name = "category_id", nullable = false)
     private CategoryEntity category;
-
-    @OneToMany(mappedBy = "idTouristPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("idTouristPlan")
-    private List<ImageEntity> image;
+  
+    @OneToMany(mappedBy = "touristPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("touristPlan")
+    @Size(min = 1, max = 5, message = "Debe haber entre 1 y 5 imágenes")
+    private List<ImageEntity> images;
 
     private LocalDate availabilityStartDate;
     private LocalDate availabilityEndDate;

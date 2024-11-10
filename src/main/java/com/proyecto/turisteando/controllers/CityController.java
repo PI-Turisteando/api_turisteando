@@ -1,8 +1,12 @@
 package com.proyecto.turisteando.controllers;
 
+import com.proyecto.turisteando.dtos.requestDto.CityRequestDto;
+import com.proyecto.turisteando.dtos.responseDto.CityResponseDto;
 import com.proyecto.turisteando.entities.CityEntity;
+import com.proyecto.turisteando.services.CrudService;
 import com.proyecto.turisteando.services.ICrudService;
 import com.proyecto.turisteando.utils.Response;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,17 +19,17 @@ import java.util.List;
 public class CityController {
 
     @Autowired
-    private ICrudService<CityEntity, Long> cityService;
+    private CrudService<CityRequestDto, CityResponseDto, Long> cityService;
 
     @PostMapping("/create")
-    public ResponseEntity<Response> create(CityEntity city) {
+    public ResponseEntity<Response> create(@Valid @RequestBody CityRequestDto city) {
         Response response = new Response(true, HttpStatus.CREATED, cityService.create(city));
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/all")
     public ResponseEntity<Response> getAll() {
-        List<CityEntity> cities = (List<CityEntity>) cityService.getAll();
+        List<CityResponseDto> cities = (List<CityResponseDto>) cityService.getAll();
         Response response = new Response(true, HttpStatus.OK, cities);
         if (cities.isEmpty()) {
             response = new Response(false, HttpStatus.NO_CONTENT, "No se encontraron ciudades");
@@ -41,7 +45,7 @@ public class CityController {
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<Response> update(@RequestBody CityEntity city, @PathVariable Long id) {
+    public ResponseEntity<Response> update(@RequestBody CityRequestDto city, @PathVariable Long id) {
         Response response = new Response(true, HttpStatus.OK, cityService.update(city, id));
         return ResponseEntity.ok(response);
     }

@@ -1,25 +1,26 @@
 package com.proyecto.turisteando.services.implement;
 
-import com.proyecto.turisteando.dtos.IDto;
 import com.proyecto.turisteando.dtos.requestDto.TouristPlanRequestDto;
 import com.proyecto.turisteando.dtos.responseDto.TouristPlanResponseDto;
+import com.proyecto.turisteando.entities.ImageEntity;
 import com.proyecto.turisteando.entities.TouristPlanEntity;
 import com.proyecto.turisteando.exceptions.customExceptions.TouristPlanNotFoundException;
 import com.proyecto.turisteando.mappers.TouristPlanMapper;
+import com.proyecto.turisteando.repositories.ImageRepository;
 import com.proyecto.turisteando.repositories.TouristPlanRepository;
-import com.proyecto.turisteando.services.ICrudService;
+import com.proyecto.turisteando.services.FileUploadService;
 import com.proyecto.turisteando.services.ITouristPlanService;
+import com.proyecto.turisteando.utils.FileValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Service
-public class TouristPlanImpl implements ITouristPlanService {
+public class TouristPlanServiceImpl implements ITouristPlanService {
 
     @Autowired
     private TouristPlanRepository touristPlanRepository;
@@ -27,8 +28,17 @@ public class TouristPlanImpl implements ITouristPlanService {
     @Autowired
     private TouristPlanMapper touristPlanMapper;
 
+    @Autowired
+    private FileValidator fileValidator;
+
+    @Autowired
+    private FileUploadService fileUploadService;
+
+    @Autowired
+    private ImageRepository imageRepository;
+
     @Override
-    public Iterable<IDto> getAll() {
+    public Iterable<TouristPlanResponseDto> getAll() {
         Iterable<TouristPlanEntity> allTouristPlans = touristPlanRepository.findAll();
         return StreamSupport.stream(allTouristPlans.spliterator(), false)
                 .map(touristPlanMapper::toDto)
@@ -36,7 +46,7 @@ public class TouristPlanImpl implements ITouristPlanService {
     }
 
     @Override
-    public Iterable<IDto> getAllByFilters(IDto iDto) {
+    public Iterable<TouristPlanResponseDto> getAllByFilters(TouristPlanRequestDto iDto) {
         List<TouristPlanEntity> allTouristPlans = touristPlanRepository.findAll();
         List<TouristPlanEntity> filteredTouristPlans = filterTouristPlans(allTouristPlans, (TouristPlanRequestDto) iDto);
         return filteredTouristPlans.stream()
@@ -45,7 +55,7 @@ public class TouristPlanImpl implements ITouristPlanService {
     }
 
     @Override
-    public IDto read(Long id) {
+    public TouristPlanResponseDto read(Long id) {
         try {
             TouristPlanEntity touristPlan = touristPlanRepository.findById(id)
                     .orElseThrow(() -> new TouristPlanNotFoundException("No existe un plan turistico con el id: " + id));
@@ -55,23 +65,50 @@ public class TouristPlanImpl implements ITouristPlanService {
         }
     }
 
+//    @Override
+//    public TouristPlanResponseDto create(TouristPlanRequestDto dto) {
+//        try {
+//            TouristPlanEntity touristPlan = touristPlanRepository
+//                    .save(touristPlanMapper.toEntity((TouristPlanRequestDto) dto));
+//            return touristPlanMapper.toDto(touristPlan);
+//        } catch (Exception e) {
+//            throw new RuntimeException(e.getMessage());
+//        }
+//    }
+
     @Override
-    public IDto create(IDto dto) {
-        try {
-            TouristPlanEntity touristPlan = touristPlanRepository
-                    .save(touristPlanMapper.toEntity((TouristPlanRequestDto) dto));
-            return touristPlanMapper.toDto(touristPlan);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public TouristPlanResponseDto create(TouristPlanRequestDto dto) {
+
+        fileValidator.validateFiles(dto.getMultipartImages()); // Valida las imagénes y lanza una excepción de tipo FileValidationException si hay un error
+
+        // Guarda las imágenes y obtiene las URLs
+        List<String> imageUrls = fileUploadService.saveImage(dto.getMultipartImages()); // Guarda las imágenes y lanza una excepción de tipo FileUploadException si hay un error
+        dto.setImagesUrl(imageUrls); // Añade las URLs al DTO como strings antes de mapear la entidad
+
+        // Mapea el DTO a la entidad
+        TouristPlanEntity touristPlanEntity = touristPlanMapper.toEntity(dto);
+
+        // Crear las entidades de imagen y agregarlas a la entidad del plan turístico
+        List<ImageEntity> imageEntities = imageUrls.stream()
+                .map(url -> ImageEntity.builder()
+                        .imageUrl(url)
+                        .touristPlan(touristPlanEntity)
+                        .build())
+                .collect(Collectors.toList());
+
+        touristPlanEntity.setImages(imageEntities);
+
+        TouristPlanEntity savedTouristPlan = touristPlanRepository.save(touristPlanEntity);
+
+        return touristPlanMapper.toDto(savedTouristPlan);
     }
 
     @Override
-    public IDto update(IDto dto, Long id) {
+    public TouristPlanResponseDto update(TouristPlanRequestDto dto, Long id) {
         try {
             TouristPlanEntity touristPlan = touristPlanRepository.findById(id)
                     .orElseThrow(() -> new TouristPlanNotFoundException("No existe un plan turistico con el id: " + id));
-            touristPlanMapper.partialUpdate((TouristPlanRequestDto) dto, touristPlan);
+            touristPlanMapper.partialUpdate(dto, touristPlan);
             return touristPlanMapper.toDto(touristPlanRepository.save(touristPlan));
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
@@ -79,7 +116,7 @@ public class TouristPlanImpl implements ITouristPlanService {
     }
 
     @Override
-    public IDto delete(Long id) {
+    public TouristPlanResponseDto delete(Long id) {
         try {
             TouristPlanEntity touristPlan = touristPlanRepository.findById(id)
                     .orElseThrow(() -> new TouristPlanNotFoundException("No existe un plan turistico con el id: " + id));
@@ -92,7 +129,7 @@ public class TouristPlanImpl implements ITouristPlanService {
     }
 
     @Override
-    public IDto toggleStatus(Long id) {
+    public TouristPlanResponseDto toggleStatus(Long id) {
         try {
             TouristPlanEntity touristPlan = touristPlanRepository.findById(id)
                     .orElseThrow(() -> new TouristPlanNotFoundException("No existe un plan turistico con el id: " + id));
@@ -112,8 +149,8 @@ public class TouristPlanImpl implements ITouristPlanService {
                         touristPlan.getTitle().toLowerCase().contains(iDto.getTitle().toLowerCase()))
                 .filter(touristPlan -> iDto.getDescription() == null ||
                         touristPlan.getDescription().toLowerCase().contains(iDto.getDescription().toLowerCase()))
-                .filter(touristPlan -> iDto.getCity() == null ||
-                        touristPlan.getCity().toLowerCase().contains(iDto.getCity()))
+                .filter(touristPlan -> iDto.getCityId() == null ||
+                        touristPlan.getCity().getId().equals(iDto.getCityId()))
                 .filter(touristPlan -> iDto.getCapacity() == null ||
                         touristPlan.getCapacity().equals(iDto.getCapacity()))
                 .filter(touristPlan -> iDto.getPrice() == null ||
