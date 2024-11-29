@@ -21,4 +21,5 @@ public interface CrudService <RequestDto, ResponseDto, I>{
 
     @Transactional
     ResponseDto toggleStatus(I id);
+
 }
